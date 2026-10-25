@@ -1,3 +1,3 @@
 # Pitchside
 
-A locked training timer. The page opens with a password.
+A locked training log. The page opens with a password; everything here is encrypted.
