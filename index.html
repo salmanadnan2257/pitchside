@@ -27,12 +27,16 @@ button:disabled{opacity:.55;cursor:default}
 .bar i{display:block;height:100%;width:0;background:var(--go);transition:width .2s}
 #msg{min-height:1.4em;margin:0;color:var(--muted)}
 #msg.bad{color:var(--bad)}
+/* a key kept on this device opens the log by itself: no password box, just the bar */
+.auto #f>:not(.bar):not(#msg){display:none}
+.auto #ask{display:none}
 </style>
 </head>
 <body>
 <main>
   <h1>Training Log</h1>
-  <p>Type the password to open it.</p>
+  <p id="ask">Type the password to open it.</p>
+  <script>try { var k = localStorage.getItem("pitchside-key"); if (k && k.indexOf(":") > 0) document.documentElement.className = "auto"; } catch (e) {}</script>
   <form id="f" autocomplete="on" onsubmit="return false">
     <input type="text" name="username" value="pitchside" autocomplete="username" hidden>
     <label for="pw">Password</label>
@@ -47,7 +51,7 @@ button:disabled{opacity:.55;cursor:default}
 (function () {
   "use strict";
   // Filled in by pitchside.py: the salt and rounds of the password's key, the app's iv and file, the store's address.
-  var D = {"salt": "7450524754d04445342844766b906fde", "rounds": 600000, "iv": "039882afaa2ea12c2da34ae7", "file": "app.bin?v=03dd492f9261", "size": 6874582, "api": "https://pitchside-sync.salmanadnan2257.workers.dev"}, STORE = "pitchside-key";
+  var D = {"salt": "7450524754d04445342844766b906fde", "rounds": 600000, "iv": "382d9aed07622c0e17c8320b", "file": "app.bin?v=ac44c7c2c914", "size": 6885163, "api": "https://pitchside-sync.salmanadnan2257.workers.dev"}, STORE = "pitchside-key";
   var $ = function (id) { return document.getElementById(id); };
   var hexb = function (h) { var a = new Uint8Array(h.length / 2); for (var i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; };
   var toHex = function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); };
@@ -85,11 +89,14 @@ button:disabled{opacity:.55;cursor:default}
     throw new Error("load");
   });
 
-  function open(bits) {
+  // keep: remember the key on this device. It is written before the log replaces this page, as nothing of this
+  // page's script is sure to run after that.
+  function open(bits, keep) {
     return crypto.subtle.importKey("raw", bits, "AES-GCM", false, ["decrypt"]).then(function (k) {
       return crypto.subtle.decrypt({ name: "AES-GCM", iv: hexb(D.iv) }, k, app);
     }).then(function (plain) {
       var kh = toHex(bits);
+      if (keep != null) set(STORE, keep ? D.salt + ":" + kh : null);
       return crypto.subtle.digest("SHA-256", new TextEncoder().encode("pitchside-auth:" + kh)).then(function (t) {
         window.__PITCHSIDE = { api: D.api, kh: kh, token: toHex(t) };
         var html = new TextDecoder().decode(plain);
@@ -103,19 +110,23 @@ button:disabled{opacity:.55;cursor:default}
     });
   }
   // A key kept from last time (for this password's salt) opens it as soon as the app is here.
+  // The password box is hidden from the start in that case (the class set in the page's head); a key that no
+  // longer opens it is dropped and the box comes back. A failed download keeps the key: the page tries again.
   var kept = get(STORE), parts = kept ? kept.split(":") : null;
+  var ask = function () { document.documentElement.className = ""; };
   if (parts && parts[0] === D.salt && parts[1] && parts[1].length === 64) {
-    waiting = true; say("Opening...");
-    loaded.then(function () { return open(hexb(parts[1])); }).then(null, function () { waiting = null; set(STORE, null); if (app) say(""); });
-  }
+    waiting = true; say("Opening the log...");
+    loaded.then(function () {
+      return open(hexb(parts[1])).then(null, function () { waiting = null; set(STORE, null); ask(); say(""); });
+    }, function () {});
+  } else ask();
   $("f").addEventListener("submit", function (ev) {
     ev.preventDefault();
     var pw = $("pw").value, keep = $("keep").checked;
     if (!pw || !app) return;
     $("go").disabled = true; say("Opening...");
     fromPassword(pw).then(function (bits) {
-      var b = new Uint8Array(bits);
-      return open(b).then(function () { if (keep) set(STORE, D.salt + ":" + toHex(b)); });
+      return open(new Uint8Array(bits), keep);
     }).then(null, function () {
       $("go").disabled = false; say("That password did not open it.", true); $("pw").select();
     });
