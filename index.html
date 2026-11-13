@@ -51,7 +51,7 @@ button:disabled{opacity:.55;cursor:default}
 (function () {
   "use strict";
   // Filled in by pitchside.py: the salt and rounds of the password's key, the app's iv and file, the store's address.
-  var D = {"salt": "7450524754d04445342844766b906fde", "rounds": 600000, "iv": "9faf5ade4d93e33f3239f72a", "file": "app.bin?v=833cece7e84c", "size": 7222049, "api": "https://pitchside-sync.salmanadnan2257.workers.dev"}, STORE = "pitchside-key";
+  var D = {"salt": "7450524754d04445342844766b906fde", "rounds": 600000, "iv": "7f59929553b24343068a392a", "file": "app.bin?v=8ee14dd673a6", "size": 7226174, "api": "https://pitchside-sync.salmanadnan2257.workers.dev"}, STORE = "pitchside-key";
   var $ = function (id) { return document.getElementById(id); };
   var hexb = function (h) { var a = new Uint8Array(h.length / 2); for (var i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; };
   var toHex = function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); };
